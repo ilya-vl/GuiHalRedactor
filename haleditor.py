@@ -6,6 +6,8 @@ from PyQt5.QtCore import Qt, QPointF, pyqtSignal
 from ui_haleditor import Ui_HalEditor
 import halparser
 
+COMPONENTSFOLDER = "/home/pi/dev/linuxcnc/src/hal/components/"
+
 class Object:
     NAME = ""
     PINS = [{}]
@@ -49,11 +51,7 @@ class MainWindow(QMainWindow):
                 {'dir': 'in', 'name': 'enable', 'type': 'bit', 'description': '"When TRUE, copy in to out";'})
         andsch = Object("TEST", pins)
 
-        # pins = ({"in1": 0, 'in2': 0, "out1": 1})
-        # iocsch = Object("OR", pins)
-
         self.create_object(andsch, 0, 0)
-        # self.create_object(iocsch, 100, 100)
 
         self.ui.treeView.clicked.connect(self.handleItemClicked)
 
@@ -95,7 +93,7 @@ class MainWindow(QMainWindow):
         other_comp.setDragEnabled(False)
         other_comp.setEditable(False)
 
-        components_list, noparsed = halparser.load_components("/home/pi/dev/linuxcnc/src/hal/components/")
+        components_list, noparsed = halparser.load_components(COMPONENTSFOLDER)
         self.complist = components_list
 
         print("Следующие компоненты не могут быть использованы: \n")
@@ -120,7 +118,7 @@ class MainWindow(QMainWindow):
                 elif (key == "other"):
                     other_comp.appendRow(item)
                 
-                pins, inputs, outputs = halparser.component_parse("/home/pi/dev/linuxcnc/src/hal/components/" + component)
+                pins, inputs, outputs = halparser.component_parse(COMPONENTSFOLDER + component)
                 pinind = 0
 
                 item.setData(ind, Qt.UserRole)
@@ -146,7 +144,7 @@ class MainWindow(QMainWindow):
     def handleItemClicked(self, index:QtCore.QModelIndex):
         item = self.model.itemFromIndex(index)
         component = self.complist[item.data(260)][item.data(Qt.UserRole)]
-        pins, inputs, outputs = halparser.component_parse("/home/pi/dev/linuxcnc/src/hal/components/" + component)
+        pins, inputs, outputs = halparser.component_parse(COMPONENTSFOLDER + component)
         obj = Object(component.split(".")[0], pins)
 
         self.create_object(obj, 200, 200)
@@ -167,9 +165,9 @@ class MainWindow(QMainWindow):
             else:
                 if (pin["dir"] == "out"): typ = 1
                 else: typ = 2
-                self.create_pin(objx, objy + pindist / 2 + outs * pindist, typ)
+                self.create_pin(objx, objy + outs * pindist, typ)
 
-                text_item.setPos(objx + 82, objy + pindist / 2 + outs * pindist - 9)
+                text_item.setPos(objx + 82, objy + outs * pindist - 9)
                 outs = outs + 1
 
             text_item.setDefaultTextColor(Qt.gray)
@@ -181,7 +179,7 @@ class MainWindow(QMainWindow):
         rectx = objx + 27.5
         recty = objy - 2.5
         rectwidth = 50
-        rectheight = 10 + (15 * (length-1))
+        rectheight = 10 + (pindist * (length-1))
         element = Element(rectx, recty, rectwidth, rectheight)
         self.elements.append(element)
         self.scene.addRect(rectx, recty, rectwidth, rectheight, pen=QPen(Qt.black), brush=QColor("white"))
