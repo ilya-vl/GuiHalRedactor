@@ -1,0 +1,1 @@
+pyuic5 haleditor.ui -o ui_haleditor.py
