@@ -5,6 +5,7 @@ from PyQt5.QtGui import QPainter, QPen, QColor, QStandardItem, QStandardItemMode
 from PyQt5.QtCore import Qt
 from ui_haleditor import Ui_HalEditor
 import halparser
+from scene import *
 
 COMPONENTSFOLDER = "/home/pi/dev/linuxcnc/src/hal/components/"
 
@@ -36,9 +37,13 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("HAL Editor: <unknown>")
         self.setGeometry(300, 300, 1024, 768)
 
-        self.scene = QGraphicsScene(self)
+        self.scene = Scene(self)
         self.ui.graph.setRenderHint(QPainter.Antialiasing)
         self.ui.graph.setScene(self.scene)
+
+        self.setMouseTracking(True) 
+
+        self.ui.hierarchy.pressed.connect(self.handleItemPressed)
 
         self.elements = []
         self.connections = []
@@ -51,7 +56,7 @@ class MainWindow(QMainWindow):
                 {'dir': 'in', 'name': 'enable', 'type': 'bit', 'description': '"When TRUE, copy in to out";'})
         andsch = Object("TEST", pins)
 
-        self.create_object(andsch, 0, 0)
+        self.create_object(andsch, 0, 0, False)
 
         # Создание модели данных
         self.model = QStandardItemModel()
@@ -139,7 +144,7 @@ class MainWindow(QMainWindow):
         self.ui.hierarchy.setModel(self.model)
         self.model.setHeaderData(0, Qt.Horizontal, "Компоненты HAL")
 
-    def handleItemClicked(self, index:QtCore.QModelIndex):
+    def handleItemPressed(self, index:QtCore.QModelIndex):
         item = self.model.itemFromIndex(index)
         component = self.complist[item.data(260)][item.data(Qt.UserRole)]
         pins = halparser.component_parse(COMPONENTSFOLDER + component)
@@ -147,46 +152,53 @@ class MainWindow(QMainWindow):
         obj = Object(component.split(".")[0], pins)
         self.create_object(obj, 200, 200)
 
-    def create_object(self, sch:Object, objx, objy):
-        pindist = 15
-
-        ins = 0
-        outs = 0
-        for pin in sch.PINS:
-            text_item = QtWidgets.QGraphicsTextItem(pin["name"])
-            text_item.setScale(0.5)
-            if (pin["dir"] == "in"):
-                self.create_pin(objx, objy + ins * pindist, 0)
-
-                text_item.setPos(objx + 12, objy + ins * pindist - 9)
-                ins = ins + 1
-            else:
-                if (pin["dir"] == "out"): typ = 1
-                else: typ = 2
-                self.create_pin(objx, objy + outs * pindist, typ)
-
-                text_item.setPos(objx + 82, objy + outs * pindist - 9)
-                outs = outs + 1
-
-            text_item.setDefaultTextColor(Qt.gray)
-            self.scene.addItem(text_item)
-
-        if (ins > outs): length = ins
-        else: length = outs
+    def create_object(self, sch:Object, objx, objy, tracking=True):
         
-        rectx = objx + 27.5
-        recty = objy - 2.5
-        rectwidth = 50
-        rectheight = 10 + (pindist * (length-1))
-        element = Element(rectx, recty, rectwidth, rectheight)
-        self.elements.append(element)
-        self.scene.addRect(rectx, recty, rectwidth, rectheight, pen=QPen(Qt.black), brush=QColor("white"))
+        newComponent = GraphicsHalComponent(sch.NAME)
+        self.scene.clearHiddenItems()
+        self.scene.addItem(newComponent)
+        
+        # ins = 0
+        # outs = 0
+        
+        for pin in sch.PINS:
+            if (pin["dir"] == "in"):
+                newComponent.addInputPin(pin["name"])
+            elif (pin["dir"] == "out"):
+                newComponent.addOutputPin(pin["name"])    
 
-        text_item = QtWidgets.QGraphicsTextItem(sch.NAME)
-        text_item.setScale(0.9)
-        text_item.setPos(objx + 35, objy - 22)
-        text_item.setDefaultTextColor(Qt.gray)
-        self.scene.addItem(text_item)
+        if (tracking == True):
+            self.scene.selectedItem = newComponent
+            newComponent.hide()
+        #         text_item.setPos(objx + 12, objy + ins * pindist - 9)
+        #         ins = ins + 1
+        #     else:
+        #         if (pin["dir"] == "out"): typ = 1
+        #         else: typ = 2
+        #         self.create_pin(objx, objy + outs * pindist, typ)
+
+        #         text_item.setPos(objx + 82, objy + outs * pindist - 9)
+        #         outs = outs + 1
+
+        #     text_item.setDefaultTextColor(Qt.gray)
+        #     self.scene.addItem(text_item)
+
+        # if (ins > outs): length = ins
+        # else: length = outs
+        
+        # rectx = objx + 27.5
+        # recty = objy - 2.5
+        # rectwidth = 50
+        # rectheight = 10 + (pindist * (length-1))
+        # element = Element(rectx, recty, rectwidth, rectheight)
+        # self.elements.append(element)
+        # self.scene.addRect(rectx, recty, rectwidth, rectheight, pen=QPen(Qt.black), brush=QColor("white"))
+
+        # text_item = QtWidgets.QGraphicsTextItem(sch.NAME)
+        # text_item.setScale(0.9)
+        # text_item.setPos(objx + 35, objy - 22)
+        # text_item.setDefaultTextColor(Qt.gray)
+        # self.scene.addItem(text_item)
 
     def create_pin(self, x, y, type):
         x1 = x
@@ -234,8 +246,6 @@ class MainWindow(QMainWindow):
 
     def zoom(self, zoom_factor):
         if (not self.ui.graph.hasFocus()): return
-
-        current_scale = self.ui.graph.transform().m11()
 
         # Set the transformation anchor to the center of the viewport
         self.ui.graph.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)

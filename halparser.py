@@ -66,6 +66,7 @@ def component_parse(component_file):
 
             pin_maxcount = ""
             pin_varname = ""
+            pin_ccc = ""
 
             if pin_direction not in ["in", "out", "io"]: continue
 

@@ -35,9 +35,11 @@ class Ui_HalEditor(object):
         self.gridLayout.setObjectName("gridLayout")
         self.graph = QtWidgets.QGraphicsView(self.centralwidget)
         self.graph.setMinimumSize(QtCore.QSize(500, 0))
+        self.graph.setMouseTracking(True)
         self.graph.setStyleSheet("border-radius: 10px;\n"
 "background: white;\n"
 "border: 1px solid lightgrey;")
+        self.graph.setDragMode(QtWidgets.QGraphicsView.NoDrag)
         self.graph.setObjectName("graph")
         self.gridLayout.addWidget(self.graph, 0, 2, 1, 1)
         spacerItem = QtWidgets.QSpacerItem(5, 20, QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum)
