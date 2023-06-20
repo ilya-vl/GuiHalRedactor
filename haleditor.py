@@ -1,12 +1,12 @@
-import sys, os
+import sys
 from PyQt5 import QtGui, QtWidgets, QtCore
 from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphicsView
 from PyQt5.QtGui import QPainter, QPen, QColor, QStandardItem, QStandardItemModel
-from PyQt5.QtCore import Qt, QPointF, pyqtSignal
+from PyQt5.QtCore import Qt
 from ui_haleditor import Ui_HalEditor
 import halparser
 
-COMPONENTSFOLDER = "/home/pi/dev/linuxcnc/src/hal/components/"
+COMPONENTSFOLDER = "/home/pi/dev/linuxcnc/src/hal/components/w/"
 
 class Object:
     NAME = ""
@@ -34,7 +34,7 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
 
         self.setWindowTitle("HAL Editor: <unknown>")
-        self.setGeometry(100, 100, 1024, 768)
+        self.setGeometry(300, 300, 1024, 768)
 
         self.scene = QGraphicsScene(self)
         self.ui.graphicsView.setRenderHint(QPainter.Antialiasing)
@@ -144,9 +144,9 @@ class MainWindow(QMainWindow):
     def handleItemClicked(self, index:QtCore.QModelIndex):
         item = self.model.itemFromIndex(index)
         component = self.complist[item.data(260)][item.data(Qt.UserRole)]
-        pins, inputs, outputs = halparser.component_parse(COMPONENTSFOLDER + component)
-        obj = Object(component.split(".")[0], pins)
+        pins = halparser.component_parse(COMPONENTSFOLDER + component)
 
+        obj = Object(component.split(".")[0], pins)
         self.create_object(obj, 200, 200)
 
     def create_object(self, sch:Object, objx, objy):
@@ -225,52 +225,6 @@ class MainWindow(QMainWindow):
         self.scene.addItem(circle_item)
         circle_item.clicked.connect(self.handleItemClick)
 
-    def handleItemClick(self):
-        print("Нажатие на элемент!")
-
-    def create_connection(self, start_element, end_element):
-        connection = Connection(start_element, end_element)
-        # self.connections.append(connection)
-        # self.scene.addLine(start_element.x + start_element.width / 2,
-        #                      start_element.y + start_element.height / 2,
-        #                      end_element.x + end_element.width / 2,
-        #                      end_element.y + end_element.height / 2,
-        #                      pen=QPen(Qt.black))
-
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            pos = self.ui.graphicsView.mapToScene(event.pos())
-            x = pos.x()
-            y = pos.y()
-
-            for element in self.elements:
-                if (x >= element.x and x <= element.x + element.width and
-                    y >= element.y and y <= element.y + element.height):
-                    self.current_element = element
-                    break
-            else:
-                # self.create_element(x, y, 20, 20)
-
-                if len(self.elements) > 1:
-                    start = self.elements[-2]
-                    end = self.elements[-1]
-                    self.create_connection(start, end)
-
-    def mouseMoveEvent(self, event):
-        if self.current_element is not None:
-            delta = event.pos() - event.localPos()
-            self.current_element.x += delta.x()
-            self.current_element.y += delta.y()
-            self.update()
-
-        if self.current_line is not None:
-            self.current_line.setLine(QtCore.QLineF(self.current_line.line().p1(), event.scenePos()))
-
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.current_element = None
-
     def wheelEvent(self, event):
         zoom_in_factor = 1.25
         zoom_out_factor = 1 / zoom_in_factor
@@ -302,4 +256,3 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
-

@@ -1,3 +1,2 @@
 # GuiHalRedactor
-Редактор для hal файлов linuxcnc
-P.S: Я знаю что у меня говнокод
+Графический редактор для hal файлов linuxcnc
