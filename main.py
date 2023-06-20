@@ -34,7 +34,12 @@ class Scene(QtWidgets.QGraphicsScene):
         self.update() 
         # self.cross.shown = False
         item = self.itemAt(event.scenePos(), QTransform()) #Есть ли предмет на координатах курсора?
-        print(item)
+        if item:
+            # Высчитываем разницу между положением курсора и положением выбранного элемента. 
+            # Если использовать эту разницу при перемещении элемента, он будет перетягиватся за пиксель, за который его схватили, а не за угол элемента
+            # Разница используется в MouseMoveEvent
+            self.deltaX = - item.mapFromScene(event.scenePos()).x()
+            self.deltaY = - item.mapFromScene(event.scenePos()).y()
         if isinstance(item, Circle):
             self.selectedItem = item  # self.selectedItem - предмет, который будет шевелится при событии mouseMoveEvent
         if isinstance(item, GraphicsHalComponent):
@@ -49,10 +54,11 @@ class Scene(QtWidgets.QGraphicsScene):
             if isinstance(item.group(), GraphicsPin):
                 pin:GraphicsPin = item.group()
                 # Если нажали на пин, создаем графическое представление связи и привязываем один из кружков связи к пину 
+                if pin.pinType == "input" and len(pin.circles()) > 0:
+                    return
                 newItem = NetСonnector()
                 self.addItem(newItem)
-                pin.setCircle(newItem.circle1)
-                
+                pin.addCircle(newItem.circle1)
                 # Выбираем второй кружок как предмет для перетаскивания. обновляем позицию кружка по курсору и перерисовывем полоски между кружками
                 self.selectedItem = newItem.circle2
                 newItem.circle2.setPos(event.scenePos())
@@ -60,20 +66,40 @@ class Scene(QtWidgets.QGraphicsScene):
 
     # Обработка нажатия движения мыши по сцене. Если есть какой-то выбранный элемент, то шевелим его по своему, в зависимости от типа
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
-        x = event.scenePos().x()
-        y = event.scenePos().y()
+        scenePos =  event.scenePos()
+        x = scenePos.x()
+        y = scenePos.y()
 
+        # Если есть выбранный элемент: двигаем его
         if self.selectedItem != None:
-            # deltaPos = QPointF( abs(self.selectedItem.pos().x() - x), abs(self.selectedItem.pos().y() - y) )
-            self.selectedItem.setPos(x, y)
+            self.selectedItem.setPos(x + self.deltaX, y + self.deltaY)
             if isinstance(self.selectedItem, Circle):
+                # Вызываем перерисовку линий между кружками, так как кружок был перемещен
                 self.selectedItem.group().redraw()
+                
+                circle: Circle = self.selectedItem
+                # Проверяем, не пересекается ли кружок с каким либо пином, и если у пина нет привязанного кружка, привязываем
+                for collidingItem in  self.collidingItems(self.selectedItem):
+                    if isinstance(collidingItem, GraphicsPin):
+                        if collidingItem.pinType == "output" or len(collidingItem.circles()) == 0:
+                            collidingItem.addCircle(circle)
+                    # Если мы перетаскиваем кружок, который был привязан к пину, и он больше не пересекается с пином, отвязываем его
+                    else:
+                        circle.resetOwner()
+                
             elif isinstance(self.selectedItem, GraphicsHalComponent):
                 halComponent: GraphicsHalComponent = self.selectedItem
                 halComponent.redraw()
 
+
     # Когда отпустили кнопку мыши - сбрасываем последний выделенный элемент, что-бы он не шевелился, когджа кнопка не нажата
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+        item = self.itemAt(event.scenePos(), QTransform())
+        print(item, self.selectedItem)
+        # Если мы перетаскивали объект, который являлся Circle, и в итоге навелись на объект GraphicsPin, то привязываем кружок к пину
+        if isinstance(item, QGraphicsSimpleTextItem) and isinstance(item.group(), GraphicsPin) and isinstance(self.selectedItem, Circle):
+            item.group().addCircle(self.selectedItem)
+
         self.selectedItem = None
         return super().mouseReleaseEvent(event)
                 
@@ -84,6 +110,8 @@ class Circle(QGraphicsEllipseItem):
         super().__init__(x, y, diameter, diameter, parent)
         self.setFlag(QtWidgets.QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         self.diameter = diameter
+        self.owner: GraphicsPin = None
+        self.setBrush(QtGui.QBrush(QtGui.QColor(QtCore.Qt.GlobalColor.green)))
 
     
     def centerPos(self):
@@ -92,6 +120,18 @@ class Circle(QGraphicsEllipseItem):
         pos.setY(pos.y() + self.diameter / 2)
         return pos
     
+    # Установка владельца. В качестве владельца используеться GraphicsPin. 
+    # Позваляет обращатся к пину через кружок
+    def setOwner(self, newOwner):
+        self.owner = newOwner
+
+    def resetOwner(self):
+        if self.owner:
+            self.owner.deleteCircle(self)
+            self.owner = None
+            self.show()
+
+
 # Класс графического отображения пина. К нему можно привязать кружок от связи
 class GraphicsPin(QtWidgets.QGraphicsItemGroup ):
     def __init__(self, name, pinType = "input", parent=None):
@@ -99,17 +139,28 @@ class GraphicsPin(QtWidgets.QGraphicsItemGroup ):
         self.name = name
         self.text = QtWidgets.QGraphicsSimpleTextItem(name)
         self.addToGroup(self.text)
-        self.circle: Circle = None
+        self._circles: List[Circle] = []
         self.pinType = pinType
 
-    # Привязываем кружок связи к пину
-    def setCircle(self, circle: QGraphicsEllipseItem):
-        self.circle = circle
-        self.updateCirclePos()
+    
+    def circles(self):
+        return self._circles
+
+    def deleteCircle(self, circle: Circle):
+        self._circles.remove(circle)
+
+    # Привязываем кружок связи к пину. На ваходные пины можно назначить только один кружок, на выходные сколько угодно
+    def addCircle(self, circle: Circle):
+        if self.pinType == "output" or len(self.circles()) == 0:
+            self._circles.append(circle)
+            if circle:
+                circle.setOwner(self)
+                circle.hide()
+                self.updateCirclePos()
 
     # Обновление позиции кружка, относительно позиции пина
     def updateCirclePos(self):
-        if self.circle:
+        for circle in self._circles:
             # Получаем родительский объект GraphicsHalComponent, на котором лежит наш пин. А так-же находим координаты для кружка, относительно стенок этого компонента
             parentComponent: GraphicsHalComponent = self.group()
             # Если пин input  помещаем кружок на левой стенке компонента, если output, то на правой
@@ -117,11 +168,11 @@ class GraphicsPin(QtWidgets.QGraphicsItemGroup ):
             # Получаем координаты нашего пина в системе координат родительского компонента
             p = self.mapFromParent(self.pos())
             # находим точку, куда расположим кружок
-            point = QPointF(x - self.circle.diameter / 2, p.y() + self.boundingRect().height() / 2 - self.circle.diameter / 2)
+            point = QPointF(x - circle.diameter / 2, p.y() + self.boundingRect().height() / 2 - circle.diameter / 2)
             # располагаем кружок на сцене
-            self.circle.setPos( self.mapToScene(point) )
+            circle.setPos( self.mapToScene(point) )
             # через метод group обращаемся к NetСonnector, которому принадлежит кружок и перерисовываем соеденительные линии
-            self.circle.group().redraw()
+            circle.group().redraw()
 
 # Класс компонента содержит имя и определенное количество GraphicsPin. 
 class GraphicsHalComponent(QtWidgets.QGraphicsItemGroup ):
@@ -193,8 +244,8 @@ class NetСonnector(QtWidgets.QGraphicsItemGroup ):
             self.addToGroup(item)
 
         # Рисуем кружки выше линий, второй кружок, выше первого
-        self.circle1.setZValue(10)
-        self.circle2.setZValue(11)
+        self.circle1.setZValue(1)
+        self.circle2.setZValue(1)
 
     # Возвращаем невалидное значение boundingRect, что-бы сцена не реагировала на пустую область между точками, а только на линии или кружки
     def boundingRect(self):
@@ -219,6 +270,7 @@ class NetСonnector(QtWidgets.QGraphicsItemGroup ):
         self.line2.setLine(QtCore.QLineF(QPointF(pos1.x() + delta, pos1.y()), QPointF(pos1.x() + delta, pos2.y())))
         # Рисуем горизонтальную линию, идущей от середины до второго кружка
         self.line3.setLine(QtCore.QLineF(QPointF(pos1.x() + delta, pos2.y()), pos2))
+
 
 
 # Окно для отображения всего этого добра
