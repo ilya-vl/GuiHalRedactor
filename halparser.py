@@ -48,7 +48,6 @@ def isHasCountPins(pins):
 
 def component_parse(component_file):
     # Чтение файла описания компонента
-    print(component_file)
     with open(component_file, "r") as file:
         lines = file.readlines()
 

@@ -6,7 +6,7 @@ from PyQt5.QtCore import Qt
 from ui_haleditor import Ui_HalEditor
 import halparser
 
-COMPONENTSFOLDER = "/home/pi/dev/linuxcnc/src/hal/components/w/"
+COMPONENTSFOLDER = "/home/pi/dev/linuxcnc/src/hal/components/"
 
 class Object:
     NAME = ""
@@ -37,8 +37,8 @@ class MainWindow(QMainWindow):
         self.setGeometry(300, 300, 1024, 768)
 
         self.scene = QGraphicsScene(self)
-        self.ui.graphicsView.setRenderHint(QPainter.Antialiasing)
-        self.ui.graphicsView.setScene(self.scene)
+        self.ui.graph.setRenderHint(QPainter.Antialiasing)
+        self.ui.graph.setScene(self.scene)
 
         self.elements = []
         self.connections = []
@@ -52,8 +52,6 @@ class MainWindow(QMainWindow):
         andsch = Object("TEST", pins)
 
         self.create_object(andsch, 0, 0)
-
-        self.ui.treeView.clicked.connect(self.handleItemClicked)
 
         # Создание модели данных
         self.model = QStandardItemModel()
@@ -118,7 +116,7 @@ class MainWindow(QMainWindow):
                 elif (key == "other"):
                     other_comp.appendRow(item)
                 
-                pins, inputs, outputs = halparser.component_parse(COMPONENTSFOLDER + component)
+                pins = halparser.component_parse(COMPONENTSFOLDER + component)
                 pinind = 0
 
                 item.setData(ind, Qt.UserRole)
@@ -138,7 +136,7 @@ class MainWindow(QMainWindow):
                     pinind = pinind + 1
                 ind = ind + 1
 
-        self.ui.treeView.setModel(self.model)
+        self.ui.hierarchy.setModel(self.model)
         self.model.setHeaderData(0, Qt.Horizontal, "Компоненты HAL")
 
     def handleItemClicked(self, index:QtCore.QModelIndex):
@@ -235,15 +233,15 @@ class MainWindow(QMainWindow):
             self.zoom(zoom_out_factor)
 
     def zoom(self, zoom_factor):
-        if (not self.ui.graphicsView.hasFocus()): return
+        if (not self.ui.graph.hasFocus()): return
 
-        current_scale = self.ui.graphicsView.transform().m11()
+        current_scale = self.ui.graph.transform().m11()
 
         # Set the transformation anchor to the center of the viewport
-        self.ui.graphicsView.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
+        self.ui.graph.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
 
         # Apply the scaling transformation
-        self.ui.graphicsView.scale(zoom_factor, zoom_factor)
+        self.ui.graph.scale(zoom_factor, zoom_factor)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Plus:

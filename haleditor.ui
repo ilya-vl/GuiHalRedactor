@@ -39,7 +39,7 @@ QTreeView::item:selected {
      <number>0</number>
     </property>
     <item row="0" column="2">
-     <widget class="QGraphicsView" name="graphicsView">
+     <widget class="QGraphicsView" name="graph">
       <property name="minimumSize">
        <size>
         <width>500</width>
@@ -70,7 +70,7 @@ border: 1px solid lightgrey;</string>
      </spacer>
     </item>
     <item row="0" column="0">
-     <widget class="QTreeView" name="treeView">
+     <widget class="QTreeView" name="hierarchy">
       <property name="maximumSize">
        <size>
         <width>200</width>
@@ -111,54 +111,54 @@ border: 1px solid lightgrey;</string>
      <height>20</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menu">
+   <widget class="QMenu" name="filemenu">
     <property name="title">
      <string>Файл</string>
     </property>
     <addaction name="separator"/>
-    <addaction name="action_2"/>
-    <addaction name="action_3"/>
-    <addaction name="action_4"/>
+    <addaction name="newAction"/>
+    <addaction name="openAction"/>
+    <addaction name="lastAction"/>
     <addaction name="separator"/>
-    <addaction name="action_6"/>
-    <addaction name="action_7"/>
+    <addaction name="saveAction"/>
+    <addaction name="saveasAction"/>
     <addaction name="separator"/>
-    <addaction name="action_9"/>
+    <addaction name="exitAction"/>
    </widget>
-   <widget class="QMenu" name="menu_2">
+   <widget class="QMenu" name="aboutmenu">
     <property name="title">
      <string>О программе</string>
     </property>
    </widget>
-   <addaction name="menu"/>
-   <addaction name="menu_2"/>
+   <addaction name="filemenu"/>
+   <addaction name="aboutmenu"/>
   </widget>
-  <action name="action_2">
+  <action name="newAction">
    <property name="text">
     <string>Новый</string>
    </property>
   </action>
-  <action name="action_3">
+  <action name="openAction">
    <property name="text">
     <string>Открыть</string>
    </property>
   </action>
-  <action name="action_4">
+  <action name="lastAction">
    <property name="text">
     <string>Последние</string>
    </property>
   </action>
-  <action name="action_6">
+  <action name="saveAction">
    <property name="text">
     <string>Сохранить</string>
    </property>
   </action>
-  <action name="action_7">
+  <action name="saveasAction">
    <property name="text">
     <string>Сохранить как</string>
    </property>
   </action>
-  <action name="action_9">
+  <action name="exitAction">
    <property name="text">
     <string>Выход</string>
    </property>
