@@ -17,7 +17,9 @@ class Scene(QtWidgets.QGraphicsScene):
         self.mouseMoveEvent(event)
 
     def dropEvent(self, event):
+        self.addLastComponent.emit(self.selectedItem)
         self.selectedItem = None
+
         event.acceptProposedAction()
 
     # Обработка нажатия мыши по сцене. Определяем нажали ли на какой-то элемент, если да, то проверяем на какой, и обрабатываем
@@ -27,7 +29,7 @@ class Scene(QtWidgets.QGraphicsScene):
             return
         # self.cross.shown = False
         item = self.itemAt(event.scenePos(), QTransform()) #Есть ли предмет на координатах курсора?
-        
+
         if item == None:
             for view in self.views():
                 view.setDragMode(QtWidgets.QGraphicsView.DragMode.ScrollHandDrag)
@@ -38,13 +40,12 @@ class Scene(QtWidgets.QGraphicsScene):
             # Разница используется в MouseMoveEvent
             self.deltaX = - item.mapFromScene(event.scenePos()).x()
             self.deltaY = - item.mapFromScene(event.scenePos()).y()
-        if isinstance(item, Circle):
+        
+        if isinstance(item, Circle) or isinstance(item, GraphicsHalComponent):
             self.selectedItem = item  # self.selectedItem - предмет, который будет шевелится при событии mouseMoveEvent
-        if isinstance(item, GraphicsHalComponent):
-            self.selectedItem = item  # self.selectedItem - предмет, который будет шевелится при событии mouseMoveEvent
-        if isinstance(item, QGraphicsRectItem): 
+        elif isinstance(item, QGraphicsRectItem): 
             # если попали по прямоугольнику, проверяем, принадлежит ли этот прямоугольник какому либо GraphicsHalComponent
-            if isinstance(item.group(), GraphicsHalComponent): 
+            if isinstance(item.group(), GraphicsHalComponent):
                 self.selectedItem = item.group() 
 
         if isinstance(item, QtWidgets.QGraphicsTextItem):
@@ -96,13 +97,32 @@ class Scene(QtWidgets.QGraphicsScene):
                 if item.isVisible() == False:
                     self.removeItem(item)
 
+    addLastComponent = QtCore.pyqtSignal(QtWidgets.QGraphicsItem)
+
     # Когда отпустили кнопку мыши - сбрасываем последний выделенный элемент, что-бы он не шевелился, когджа кнопка не нажата
-    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+    def mouseReleaseEvent(self, event) -> None:
         item = self.itemAt(event.scenePos(), QTransform())
         # Если мы перетаскивали объект, который являлся Circle, и в итоге навелись на объект GraphicsPin, то привязываем кружок к пину
         if isinstance(item, QtWidgets.QGraphicsTextItem) and isinstance(item.group(), GraphicsPin) and isinstance(self.selectedItem, Circle):
             item.group().addCircle(self.selectedItem)
+        elif isinstance(self.selectedItem, Circle):
+            oldnet = self.selectedItem
+            newItem = NetСonnector()
+            self.addItem(newItem)
+            # Выбираем второй кружок как предмет для перетаскивания. обновляем позицию кружка по курсору и перерисовывем полоски между кружками
+            self.selectedItem = newItem.circle2
+            #newItem.circle2.setPos(event.scenePos())
+            
+            newItem.circle1.setPos(oldnet.pos())
+            newItem.circle2.setPos(oldnet.pos())
+            newItem.circle2.group().redraw()
 
+            newItem.circle1.hide()
+            oldnet.parentItem().circle2.hide()
+        
+        if (self.selectedItem != None):
+            self.addLastComponent.emit(self.selectedItem)
+        
         self.selectedItem = None
         for view in self.views():   
             view.setDragMode(QtWidgets.QGraphicsView.DragMode.NoDrag)
@@ -192,8 +212,8 @@ class GraphicsHalComponent(QtWidgets.QGraphicsItemGroup ):
         self.addToGroup(self.rect) 
         self.addToGroup(self.gName)
         
-    def __del__(self):
-        print("DESTRUCTOR")
+    # def __del__(self):
+    #     print("DESTRUCTOR")
 
     def nameToCenter(self):
         # Располагаем имя компонета посередине прямоугольника. С небольшим отступом сверху
@@ -221,7 +241,6 @@ class GraphicsHalComponent(QtWidgets.QGraphicsItemGroup ):
         self.addToGroup(newPin)
         self.distributePositions(self.inputPins)
         self.distributePositions(self.outputPins, right=True)
-
 
     # Тоже самое, как и для входных пинов, но для выходных
     def addOutputPin(self, name):

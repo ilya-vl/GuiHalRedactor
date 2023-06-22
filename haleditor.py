@@ -40,15 +40,20 @@ class MainWindow(QMainWindow):
         self.scene = Scene(self)
         self.ui.graph.setRenderHint(QPainter.Antialiasing)
         self.ui.graph.setScene(self.scene)
-
-        self.setMouseTracking(True) 
+        self.scene.addLastComponent.connect(self.addLastComponent)
 
         self.ui.hierarchy.pressed.connect(self.handleItemPressed)
 
-        self.elements = []
-        self.connections = []
-        self.current_element = None
-        self.current_line = None
+        # Кнопка вид -> Компоненты HAL
+        self.ui.halComponentsAction.changed.connect(lambda: self.ui.hierarchy.setVisible(self.ui.halComponentsAction.isChecked()))
+
+        # self.elements = []
+        # self.connections = []
+        # self.current_element = None
+        # self.current_line = None
+
+        #* Индекс элемента в категории Последние
+        self.lastind = 0
 
         pins = ({'dir': 'in', 'name': 'in_', 'type': 'float', 'description': '"Input value";'},
                 {'dir': 'out', 'name': 'out', 'type': 'float', 'description': '"Output value";'},
@@ -60,41 +65,18 @@ class MainWindow(QMainWindow):
 
         # Создание модели данных
         self.model = QStandardItemModel()
-
-        last_comp = QStandardItem("Последние")
-        last_comp.setDragEnabled(False)
-        self.model.appendRow(last_comp)
-        last_comp.setEditable(False)
-
-        sys_comp = QStandardItem("Системные")
-        sys_comp.setDragEnabled(False)
-        self.model.appendRow(sys_comp)
-        sys_comp.setEditable(False)
-
-        logic_comp = QStandardItem("Логические")
-        self.model.appendRow(logic_comp)
-        logic_comp.setDragEnabled(False)
-        logic_comp.setEditable(False)
-
-        arithm_comp = QStandardItem("Арифметические")
-        self.model.appendRow(arithm_comp)
-        arithm_comp.setDragEnabled(False)
-        arithm_comp.setEditable(False)
-
-        types_comp = QStandardItem("Приведение типов")
-        self.model.appendRow(types_comp)
-        types_comp.setDragEnabled(False)
-        types_comp.setEditable(False)
-
-        drivers_comp = QStandardItem("Драйверы")
-        self.model.appendRow(drivers_comp)
-        drivers_comp.setDragEnabled(False)
-        drivers_comp.setEditable(False)
-
-        other_comp = QStandardItem("Другие")
-        self.model.appendRow(other_comp)
-        other_comp.setDragEnabled(False)
-        other_comp.setEditable(False)
+        categories = ["Последние", "Системные", "Логические", "Арифметические", "Приведение типов", "Драйверы", "Другие"]
+        categories_raw = ["last", "system", "logic", "arithm", "types", "drivers", "other"]
+        self.category_ = {"":QStandardItem}
+        ind = 0
+        for category in categories:
+            self.category_[categories_raw[ind]] = QStandardItem(category)
+            self.category_[categories_raw[ind]].setFont(QtGui.QFont("Arial", 12))
+            self.category_[categories_raw[ind]].setDragEnabled(False)
+            self.model.appendRow(self.category_[categories_raw[ind]])
+            self.category_[categories_raw[ind]].setEditable(False)
+            self.category_[categories_raw[ind]].setData("no", Qt.UserRole)
+            ind = ind + 1
 
         components_list, noparsed = halparser.load_components(COMPONENTSFOLDER)
         self.complist = components_list
@@ -103,42 +85,13 @@ class MainWindow(QMainWindow):
         for item in noparsed:
             print(item)
             
+        # Добавляем все компоненты по категориям в дерево компонентов
         for key, value in components_list.items():
             ind = 0
             for component in value:
                 if value == "": continue
                 item_s = component.split(".")[0]
-
-                item = QStandardItem(item_s)
-                if (key == "system"):
-                    sys_comp.appendRow(item)
-                elif (key == "logic"):
-                    logic_comp.appendRow(item)
-                elif (key == "arithm"):
-                    arithm_comp.appendRow(item)
-                elif (key == "types"):
-                    types_comp.appendRow(item)
-                elif (key == "other"):
-                    other_comp.appendRow(item)
-                
-                pins = halparser.component_parse(COMPONENTSFOLDER + component)
-                pinind = 0
-
-                item.setData(ind, Qt.UserRole)
-                item.setData(key, 260)
-                item.setEditable(False)
-
-                for pin in pins:
-                    subitem = QStandardItem(pin["name"])
-                    if (pin["dir"] == "in"):
-                        subitem.setForeground(Qt.blue)
-                    elif (pin["dir"] == "out"):
-                        subitem.setForeground(Qt.red)
-                    elif (pin["dir"] == "io"):
-                        subitem.setForeground(Qt.green)
-                    item.appendRow(subitem)
-                    subitem.setEditable(False)
-                    pinind = pinind + 1
+                self.addComponentToHierarchy(ind, key, item_s)
                 ind = ind + 1
 
         self.ui.hierarchy.setModel(self.model)
@@ -146,30 +99,72 @@ class MainWindow(QMainWindow):
 
     def handleItemPressed(self, index:QtCore.QModelIndex):
         item = self.model.itemFromIndex(index)
+        
+        #* Если выбран рут(заголовок) элемент 
+        if (item.data(Qt.UserRole) == "no"):
+            # Раскрывать и закрывать рут элементы при нажатии
+            if (self.ui.hierarchy.isExpanded(index)): self.ui.hierarchy.setExpanded(index, False)
+            else: self.ui.hierarchy.setExpanded(index, True)
+            return
+
         component = self.complist[item.data(260)][item.data(Qt.UserRole)]
         pins = halparser.component_parse(COMPONENTSFOLDER + component)
 
         obj = Object(component.split(".")[0], pins)
         self.create_object(obj, 200, 200)
 
+    #TODO
+    def addComponentToHierarchy(self, ind, key, name):
+        pins = halparser.component_parse(COMPONENTSFOLDER + name + ".comp")
+        if (pins == False): return
+
+        item = QStandardItem(name)
+        self.category_[key].appendRow(item)
+
+        item.setData(ind, Qt.UserRole)
+        item.setData(key, 260)
+        item.setEditable(False)
+        for pin in pins:
+            subitem = QStandardItem(pin["name"])
+            if (pin["dir"] == "in"):
+                subitem.setForeground(Qt.blue)
+            elif (pin["dir"] == "out"):
+                subitem.setForeground(Qt.red)
+            elif (pin["dir"] == "io"):
+                subitem.setForeground(Qt.green)
+            
+            subitem.setEditable(False)
+            subitem.setData("no", Qt.UserRole)
+            subitem.setToolTip(str(pin["description"]))
+            item.appendRow(subitem)
+
+    def addLastComponent(self, item:GraphicsHalComponent):
+        if (isinstance(item, Circle)): return
+        if (item != None):
+            if (item.name + ".comp" not in self.complist["last"]):
+                self.complist["last"].append(item.name + ".comp")
+
+            for i in range(10):
+                if (self.model.itemFromIndex(self.model.index(0, 0)).child(i, 0) != None):
+                    text = self.model.itemFromIndex(self.model.index(0, 0).child(i, 0)).text()
+                    if (text == item.name): return
+                    
+        self.addComponentToHierarchy(0, "last", item.name)
     def create_object(self, sch:Object, objx, objy, tracking=True):
-        
         newComponent = GraphicsHalComponent(sch.NAME)
         self.scene.clearHiddenItems()
         self.scene.addItem(newComponent)
         
-        # ins = 0
-        # outs = 0
-        
         for pin in sch.PINS:
             if (pin["dir"] == "in"):
                 newComponent.addInputPin(pin["name"])
-            elif (pin["dir"] == "out"):
+            elif (pin["dir"] == "out" or pin["dir"] == "io"): #TODO IO
                 newComponent.addOutputPin(pin["name"])    
 
         if (tracking == True):
             self.scene.selectedItem = newComponent
             newComponent.hide()
+
         #         text_item.setPos(objx + 12, objy + ins * pindist - 9)
         #         ins = ins + 1
         #     else:

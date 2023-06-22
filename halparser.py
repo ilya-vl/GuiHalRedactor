@@ -2,6 +2,7 @@ import os
 
 def load_components(folder_path):
     comps = {
+        "last": [],
         "system": [],
         "logic": [],
         "arithm": [],
@@ -48,6 +49,7 @@ def isHasCountPins(pins):
 
 def component_parse(component_file):
     # Чтение файла описания компонента
+    if (not os.path.exists(component_file)): return False
     with open(component_file, "r") as file:
         lines = file.readlines()
 
