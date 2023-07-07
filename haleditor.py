@@ -7,7 +7,7 @@ from ui_haleditor import Ui_HalEditor
 import halparser
 from scene import *
 
-COMPONENTSFOLDER = "/home/pi/dev/linuxcnc/src/hal/components/"
+COMPONENTSFOLDER = "./components/"
 
 class Object:
     NAME = ""

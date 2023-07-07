@@ -25,7 +25,7 @@ def load_components(folder_path):
                     noparsed.append(item_s)
                     continue
 
-                if (item_s in ["axis", "halui", "io", "iocontrol", "iov2", "milltask"]):
+                if (item_s in ["axis", "joint", "halui", "io", "iocontrol", "iov2", "milltask"]):
                     str = "system"
                 elif (item_s in 
                         ["and2", "bitwise", "dbounce", "debounce", "demux", "edge", "estop_latch", "flipflop", "logic", "lut5", "match8", "multiclick", "multiswitch", "not", "oneshot", "or2", "select8", "tof", "toggle", "toggle2nist", "ton", "timedelay", "tp", "tristate_bit", "tristate_float", "xor2"]):

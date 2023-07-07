@@ -13,6 +13,9 @@ class Scene(QtWidgets.QGraphicsScene):
         self.deltaX = 0
         self.deltaY = 0
 
+        self.context_menu = QtWidgets.QMenu(self.parent())
+        self.action1 = QtWidgets.QAction("Удалить узел", self)
+
     def dragMoveEvent(self, event):
         self.mouseMoveEvent(event)
 
@@ -24,11 +27,25 @@ class Scene(QtWidgets.QGraphicsScene):
 
     # Обработка нажатия мыши по сцене. Определяем нажали ли на какой-то элемент, если да, то проверяем на какой, и обрабатываем
     def mousePressEvent(self, event):
-        self.update() 
-        if self.selectedItem:
-            return
-        # self.cross.shown = False
+        self.update()
         item = self.itemAt(event.scenePos(), QTransform()) #Есть ли предмет на координатах курсора?
+        
+        # Если нажата правая кнопка мыши то обрабатываем контекстное меню
+        if event.button() == 2:
+            if isinstance(item, Circle):
+                print(self.parent())
+
+                self.context_menu.addAction(self.action1)
+                delet = (lambda: (
+                    print(item.parentItem()),
+                    self.removeItem(item.parentItem())
+                ))
+                self.action1.triggered.connect(delet)
+                self.context_menu.exec_(QtCore.QPoint(event.screenPos().x(), event.screenPos().y()))
+            return
+        
+        if self.selectedItem:
+            return        
 
         if item == None:
             for view in self.views():
@@ -211,9 +228,6 @@ class GraphicsHalComponent(QtWidgets.QGraphicsItemGroup ):
         self.gName = QtWidgets.QGraphicsTextItem(self.name)
         self.addToGroup(self.rect) 
         self.addToGroup(self.gName)
-        
-    # def __del__(self):
-    #     print("DESTRUCTOR")
 
     def nameToCenter(self):
         # Располагаем имя компонета посередине прямоугольника. С небольшим отступом сверху
@@ -283,11 +297,8 @@ class GraphicsHalComponent(QtWidgets.QGraphicsItemGroup ):
             y =  distance * i
             pin.setPos(xPos, y)
 
-        
-
-
 # Графическое представление связи между пинами
-class NetСonnector(QtWidgets.QGraphicsItemGroup ):
+class NetСonnector(QtWidgets.QGraphicsItemGroup):
     def __init__(self, parent=None):
         super(NetСonnector, self).__init__(parent)
         self.circle1 = Circle(0,0,10)
@@ -302,6 +313,9 @@ class NetСonnector(QtWidgets.QGraphicsItemGroup ):
         # Рисуем кружки выше линий, второй кружок, выше первого
         self.circle1.setZValue(1)
         self.circle2.setZValue(1)
+
+    def __del__(self):
+        print("delnet")
 
     # Возвращаем невалидное значение boundingRect, что-бы сцена не реагировала на пустую область между точками, а только на линии или кружки
     def boundingRect(self):

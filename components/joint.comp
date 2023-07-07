@@ -1,0 +1,24 @@
+pin out bit error
+pin out float f-error
+pin out float f-error-lim
+pin out float f-errored
+
+pin in float jog-accel-fraction
+pin in s32 jog-counts
+pin in bit jog-enable
+pin in float jog-scale
+pin in bit jog-vel-mode
+
+pin out bit kb-jog-active
+
+pin out bit motor-offset
+pin out float motor-pos-cmd
+pin in float motor-pos-fb
+
+pin out bit neg-hard-limit
+pin in bit neg-lim-sw-in
+pin out float pos-cmd
+pin out float pos-fb
+pin out bit pos-hard-limit
+pin in bit pos-lim-sw-in
+pin out float vel-cmd
